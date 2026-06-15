@@ -2,8 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { computeEnrollmentTotals, sumPayments, formatINR } from "@/lib/money";
-import { paymentModeLabel, serviceLabel, COMPANY_NAME } from "@/lib/constants";
+import { paymentModeLabel, serviceLabel } from "@/lib/constants";
 import { PrintButton } from "@/components/PrintButton";
+import { LogoMark } from "@/components/Logo";
 
 // Printable fee receipt (Section 3.3). Standalone (no app chrome) so it prints clean.
 export default async function ReceiptPage({ params }: { params: { id: string } }) {
@@ -37,10 +38,10 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
       <div className="mb-6 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">SF</div>
+            <LogoMark className="h-12 w-12 text-brand-700" />
             <div>
-              <div className="text-lg font-semibold text-slate-900">{COMPANY_NAME}</div>
-              <div className="text-xs text-slate-500">Immigration & Education Consultancy</div>
+              <div className="text-lg font-bold tracking-tight text-brand-700">SILVER FERN</div>
+              <div className="text-[10px] font-semibold tracking-[0.2em] text-slate-500">EDUCATION CONSULTANTS</div>
             </div>
           </div>
         </div>

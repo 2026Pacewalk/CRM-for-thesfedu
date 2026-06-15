@@ -4,6 +4,7 @@ import type { RoleKey } from "@/lib/constants";
 import { COMPANY_NAME, roleLabel } from "@/lib/constants";
 import { reportsForRole, parseRange, type ReportDef, type ReportRow, type ReportRange } from "@/lib/reports";
 import { PrintButton } from "@/components/PrintButton";
+import { LogoMark } from "@/components/Logo";
 
 // Print / PDF view of all reports the viewer can see (Section 6.7 — "Export all
 // reports to Excel / PDF"). Standalone (no app chrome) so it prints clean; the
@@ -34,9 +35,9 @@ export default async function ReportsPrintPage({
     <div className="mx-auto max-w-4xl p-8">
       <div className="mb-6 flex items-start justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">SF</div>
+          <LogoMark className="h-11 w-11 text-brand-700" />
           <div>
-            <div className="text-lg font-semibold text-slate-900">{COMPANY_NAME}</div>
+            <div className="text-base font-bold tracking-tight text-brand-700">SILVER FERN</div>
             <div className="text-xs text-slate-500">Reports — {roleLabel(user.role)}</div>
           </div>
         </div>

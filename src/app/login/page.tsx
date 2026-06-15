@@ -2,6 +2,7 @@
 
 import { useFormState, useFormStatus } from "react-dom";
 import { loginAction, type LoginState } from "./actions";
+import { LogoLockup } from "@/components/Logo";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -18,12 +19,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 px-4">
       <div className="card w-full max-w-md p-8">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
-            SF
-          </div>
-          <h1 className="text-xl font-semibold text-slate-900">theSFedu CRM</h1>
-          <p className="text-sm text-slate-500">Immigration & Consultancy</p>
+        <div className="mb-6 flex flex-col items-center text-center">
+          <LogoLockup className="mb-4" />
+          <h1 className="text-lg font-semibold text-slate-900">CRM Sign in</h1>
+          <p className="text-sm text-slate-500">Immigration &amp; Education Consultancy</p>
         </div>
 
         <form action={formAction} className="space-y-4">

@@ -8,17 +8,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Silver Fern Education Consultants — deep forest green (thesfedu.com).
         brand: {
-          50: "#eef5ff",
-          100: "#d9e7ff",
-          200: "#bcd5ff",
-          300: "#8ebaff",
-          400: "#5993ff",
-          500: "#326bff",
-          600: "#1b4af5",
-          700: "#1438e1",
-          800: "#172fb6",
-          900: "#192e8f",
+          50: "#eef6f0",
+          100: "#d6e9db",
+          200: "#aed3b8",
+          300: "#7fb78f",
+          400: "#4f9667",
+          500: "#357d4a",
+          600: "#276439",
+          700: "#21512f",
+          800: "#1c4127",
+          900: "#163420",
         },
       },
     },
