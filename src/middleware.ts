@@ -37,6 +37,7 @@ const PUBLIC_PATHS = [
   "/api/payments/razorpay/webhook",
   "/api/integrations/whatsapp/webhook", // guarded by verify token + optional signature
   "/api/integrations/leadforms/webhook", // guarded by verify token + optional signature
+  "/api/calendar", // .ics feed, authorized by signed token in the path
   "/api/cron/digests", // guarded by CRON_SECRET in the route itself
 ];
 

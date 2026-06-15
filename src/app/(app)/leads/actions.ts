@@ -5,9 +5,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { can, CAN_CREATE_LEAD, CAN_ASSIGN_LEAD, CAN_MERGE_LEAD } from "@/lib/rbac";
+import { can, CAN_CREATE_LEAD, CAN_ASSIGN_LEAD, CAN_MERGE_LEAD, CAN_ADMIN } from "@/lib/rbac";
 import { notifyMany } from "@/lib/notify";
 import { mergeLeadRecords } from "@/lib/merge";
+import { eraseLeadData } from "@/lib/privacy";
 import {
   LEAD_SOURCES,
   LEAD_STATUSES,
@@ -232,6 +233,22 @@ export async function mergeLeadAction(
   revalidatePath(`/leads/${primaryId}`);
   revalidatePath("/leads");
   redirect(`/leads/${primaryId}`);
+}
+
+// --- GDPR erasure / right to be forgotten (Section 7.11) ---
+export async function eraseLeadAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !can(user.role, CAN_ADMIN)) return;
+
+  const leadId = String(formData.get("leadId") ?? "");
+  // Require an explicit typed confirmation to avoid accidental erasure.
+  if (String(formData.get("confirm") ?? "") !== "ERASE") return;
+
+  const result = await eraseLeadData(leadId, user.id);
+  if (result.ok) {
+    revalidatePath(`/leads/${leadId}`);
+    revalidatePath("/leads");
+  }
 }
 
 // --- interaction logging (Section 7.1) ---

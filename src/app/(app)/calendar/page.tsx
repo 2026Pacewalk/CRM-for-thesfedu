@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { leadScopeWhere } from "@/lib/leads";
+import { makeFeedToken } from "@/lib/calendar-feed";
 
 // Calendar view of follow-ups and tasks (Section 7.3). Shows, on a month grid,
 // the tasks assigned to the viewer plus follow-up dates for leads in their scope.
@@ -66,6 +68,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: { m
 
   const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+  // Personal subscribable feed URL (Section 7.10) for Google/Outlook.
+  const h = headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const feedUrl = `${proto}://${host}/api/calendar/${makeFeedToken(user.id)}`;
+
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -80,6 +88,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: { m
           {!isCurrentMonth && <Link href="/calendar" className="text-sm text-brand-600 hover:underline">Today</Link>}
         </div>
       </div>
+
+      {/* Subscribe feed (Section 7.10) — Google/Outlook poll this URL */}
+      <details className="card mb-3 p-3 text-sm">
+        <summary className="cursor-pointer font-medium text-slate-700">📡 Subscribe in Google / Outlook Calendar</summary>
+        <p className="mt-2 text-xs text-slate-500">
+          Add this private URL via <b>Google Calendar → Other calendars → From URL</b>, or
+          <b> Outlook → Add calendar → Subscribe from web</b>. It stays in sync with your tasks and follow-ups.
+        </p>
+        <code className="mt-2 block break-all rounded bg-slate-50 p-2 text-[11px] text-slate-700">{feedUrl}</code>
+      </details>
 
       {/* Legend */}
       <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">

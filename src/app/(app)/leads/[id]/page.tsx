@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { can, CAN_ASSIGN_LEAD, CAN_ENROLL, CAN_BACKEND, CAN_UPLOAD_DOCS, CAN_MERGE_LEAD } from "@/lib/rbac";
+import { can, CAN_ASSIGN_LEAD, CAN_ENROLL, CAN_BACKEND, CAN_UPLOAD_DOCS, CAN_MERGE_LEAD, CAN_ADMIN } from "@/lib/rbac";
+import { eraseLeadAction } from "@/app/(app)/leads/actions";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusChanger } from "@/components/StatusChanger";
 import { InteractionForm } from "@/components/InteractionForm";
@@ -403,6 +404,24 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <section className="card p-5">
               <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Merge Duplicate</h2>
               <MergeLeadPanel leadId={lead.id} phone={lead.phone} email={lead.email} fullName={lead.fullName} />
+            </section>
+          )}
+
+          {/* Privacy / GDPR (Section 7.11) — admins only */}
+          {can(user.role, CAN_ADMIN) && (
+            <section className="card p-5">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Privacy (GDPR)</h2>
+              <a href={`/api/leads/${lead.id}/export`} className="btn-secondary mb-3 block text-center text-xs">Export data (JSON)</a>
+              {lead.status === "ERASED" ? (
+                <p className="text-xs text-slate-400">Personal data has been erased.</p>
+              ) : (
+                <form action={eraseLeadAction} className="space-y-2">
+                  <input type="hidden" name="leadId" value={lead.id} />
+                  <p className="text-xs text-slate-500">Right to erasure: anonymizes all personal data and deletes uploaded documents. Type <b>ERASE</b> to confirm.</p>
+                  <input name="confirm" className="input" placeholder="ERASE" autoComplete="off" />
+                  <button className="w-full rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700">Erase personal data</button>
+                </form>
+              )}
             </section>
           )}
         </div>
