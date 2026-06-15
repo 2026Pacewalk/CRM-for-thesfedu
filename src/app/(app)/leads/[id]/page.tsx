@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { can, CAN_ASSIGN_LEAD, CAN_ENROLL, CAN_BACKEND, CAN_UPLOAD_DOCS } from "@/lib/rbac";
+import { can, CAN_ASSIGN_LEAD, CAN_ENROLL, CAN_BACKEND, CAN_UPLOAD_DOCS, CAN_MERGE_LEAD } from "@/lib/rbac";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusChanger } from "@/components/StatusChanger";
 import { InteractionForm } from "@/components/InteractionForm";
@@ -10,6 +10,7 @@ import { AssignForm } from "@/components/AssignForm";
 import { StageBadge } from "@/components/StageBadge";
 import { DocumentSection } from "@/components/DocumentSection";
 import { SendMessageForm } from "@/components/SendMessageForm";
+import { MergeLeadPanel } from "@/components/MergeLeadPanel";
 import { recordPaymentAction } from "@/app/(app)/enrollments/actions";
 import { createPaymentLinkAction, markPaymentLinkPaidAction } from "@/app/(app)/payments/actions";
 import { computeEnrollmentTotals, sumPayments, formatINR } from "@/lib/money";
@@ -21,10 +22,13 @@ import {
   statusLabel,
   paymentModeLabel,
   channelLabel,
+  documentTypeLabel,
+  requiredDocsForServices,
   INTERACTION_TYPES,
   PAYMENT_MODES,
   PAYMENT_STATUSES,
   MESSAGE_STATUS_COLORS,
+  type ServiceTypeKey,
 } from "@/lib/constants";
 
 function fmtDateTime(d: Date) {
@@ -281,12 +285,13 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           {/* Documents (Section 7.5) */}
           <section className="card p-5">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Documents ({lead.documents.length})</h2>
+            <DocumentChecklist services={services} uploadedTypes={lead.documents.map((d) => d.type)} />
             <DocumentSection
               leadId={lead.id}
               canUpload={can(user.role, CAN_UPLOAD_DOCS)}
               documents={lead.documents.map((d) => ({
                 id: d.id, type: d.type, label: d.label, fileName: d.fileName, version: d.version,
-                fileSize: d.fileSize, uploadedAt: d.uploadedAt, uploadedByName: d.uploadedBy?.name,
+                fileSize: d.fileSize, uploadedAt: d.uploadedAt, expiresAt: d.expiresAt, uploadedByName: d.uploadedBy?.name,
               }))}
             />
           </section>
@@ -302,7 +307,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                     <div className="flex items-center gap-2">
                       <span className="badge bg-slate-100 text-slate-600">{channelLabel(m.channel)}</span>
                       <span className={`badge ${MESSAGE_STATUS_COLORS[m.status] ?? "bg-slate-100 text-slate-600"}`}>{m.status}</span>
-                      <span className="text-xs text-slate-400">to {m.toAddress} · {m.sentBy?.name ?? "System"} · {fmtDateTime(m.createdAt)}</span>
+                      <span className="text-xs text-slate-400">{m.status === "RECEIVED" ? "from" : "to"} {m.toAddress} · {m.sentBy?.name ?? "System"} · {fmtDateTime(m.createdAt)}</span>
                     </div>
                     <p className="mt-1 text-slate-600">{m.body}</p>
                     {m.error && <p className="text-xs text-rose-500">{m.error}</p>}
@@ -392,8 +397,47 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               </ul>
             )}
           </section>
+
+          {/* Duplicate merge (Section 7.2) */}
+          {can(user.role, CAN_MERGE_LEAD) && lead.status !== "DUPLICATE" && (
+            <section className="card p-5">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Merge Duplicate</h2>
+              <MergeLeadPanel leadId={lead.id} phone={lead.phone} email={lead.email} fullName={lead.fullName} />
+            </section>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Required-document checklist with completion indicators (Section 7.5). The list
+// is the union of required docs for the lead's selected services.
+function DocumentChecklist({ services, uploadedTypes }: { services: ServiceTypeKey[]; uploadedTypes: string[] }) {
+  const required = requiredDocsForServices(services);
+  if (required.length === 0) return null;
+  const have = new Set(uploadedTypes);
+  const done = required.filter((t) => have.has(t)).length;
+
+  return (
+    <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Required Documents</span>
+        <span className={`badge ${done === required.length ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+          {done}/{required.length} complete
+        </span>
+      </div>
+      <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+        {required.map((t) => {
+          const ok = have.has(t);
+          return (
+            <li key={t} className="flex items-center gap-2 text-sm">
+              <span className={ok ? "text-emerald-600" : "text-slate-300"}>{ok ? "✓" : "○"}</span>
+              <span className={ok ? "text-slate-700" : "text-slate-400"}>{documentTypeLabel(t)}</span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

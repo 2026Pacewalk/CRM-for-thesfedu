@@ -18,6 +18,7 @@ export function Sidebar({ role }: { role: string }) {
     { href: "/partners", label: "B2B Partners", icon: "🤝", show: can(role, CAN_B2B) },
     { href: "/assessments", label: "Assessments", icon: "📝", show: can(role, CAN_B2B) },
     { href: "/tasks", label: "Tasks", icon: "✅" },
+    { href: "/calendar", label: "Calendar", icon: "📅" },
     { href: "/reports", label: "Reports", icon: "📈" },
     { href: "/admin", label: "Admin", icon: "⚙️", show: can(role, CAN_ADMIN) },
   ];

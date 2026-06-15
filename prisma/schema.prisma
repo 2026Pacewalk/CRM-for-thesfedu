@@ -375,6 +375,7 @@ model Document {
   mimeType      String?
   fileSize      Int      @default(0)
   version       Int      @default(1)
+  expiresAt     DateTime? // for expiry tracking & alerts (Section 7.5) — passports, visas, test scores
   uploadedAt    DateTime @default(now())
 
   leadId String?

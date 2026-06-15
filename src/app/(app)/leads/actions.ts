@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { can, CAN_CREATE_LEAD, CAN_ASSIGN_LEAD } from "@/lib/rbac";
+import { can, CAN_CREATE_LEAD, CAN_ASSIGN_LEAD, CAN_MERGE_LEAD } from "@/lib/rbac";
 import { notifyMany } from "@/lib/notify";
+import { mergeLeadRecords } from "@/lib/merge";
 import {
   LEAD_SOURCES,
   LEAD_STATUSES,
@@ -205,6 +206,32 @@ export async function assignCounselorsAction(formData: FormData) {
   );
 
   revalidatePath(`/leads/${leadId}`);
+}
+
+// --- duplicate merge (Section 7.2) ---
+// Merge a duplicate lead into a primary ("original") lead, retaining all history
+// from both. Child records (interactions, tasks, applications, documents, etc.)
+// are reassigned to the primary; the duplicate is kept as a tombstone flagged
+// DUPLICATE with a pointer to the original (so the merge is auditable).
+export type MergeLeadState = { error?: string; ok?: boolean };
+
+export async function mergeLeadAction(
+  _prev: MergeLeadState,
+  formData: FormData
+): Promise<MergeLeadState> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Not authenticated." };
+  if (!can(user.role, CAN_MERGE_LEAD)) return { error: "You do not have permission to merge leads." };
+
+  const primaryId = String(formData.get("primaryId") ?? "");
+  const duplicateId = String(formData.get("duplicateId") ?? "");
+
+  const result = await mergeLeadRecords(primaryId, duplicateId, user.id);
+  if (result.error) return result;
+
+  revalidatePath(`/leads/${primaryId}`);
+  revalidatePath("/leads");
+  redirect(`/leads/${primaryId}`);
 }
 
 // --- interaction logging (Section 7.1) ---

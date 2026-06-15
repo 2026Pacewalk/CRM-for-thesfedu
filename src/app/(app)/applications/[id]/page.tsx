@@ -101,7 +101,7 @@ export default async function ApplicationDetailPage({ params }: { params: { id: 
               canUpload={can(user.role, CAN_UPLOAD_DOCS)}
               documents={app.documents.map((d) => ({
                 id: d.id, type: d.type, label: d.label, fileName: d.fileName, version: d.version,
-                fileSize: d.fileSize, uploadedAt: d.uploadedAt, uploadedByName: d.uploadedBy?.name,
+                fileSize: d.fileSize, uploadedAt: d.uploadedAt, expiresAt: d.expiresAt, uploadedByName: d.uploadedBy?.name,
               }))}
             />
           </section>

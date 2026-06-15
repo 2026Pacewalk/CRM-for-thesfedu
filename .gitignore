@@ -11,6 +11,7 @@ prisma/dev.db-journal
 # uploaded documents (user data)
 /uploads
 next-env.d.ts
+tsconfig.tsbuildinfo
 .DS_Store
 
 # scratch files from blueprint extraction
