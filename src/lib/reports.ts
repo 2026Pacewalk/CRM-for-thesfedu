@@ -15,6 +15,7 @@ import {
 } from "./constants";
 import { computeEnrollmentTotals, sumPayments } from "./money";
 import { getSlaDays } from "./settings";
+import { partnerScore } from "./partner-score";
 
 export type ReportRange = { from?: Date; to?: Date };
 
@@ -398,7 +399,7 @@ export const REPORTS: ReportDef[] = [
     key: "partner-performance",
     title: "Partner Performance Report",
     section: "B2B",
-    columns: ["Partner", "Assessments", "Applications", "Approved", "Commission Owed (₹)"],
+    columns: ["Partner", "Score", "Assessments", "Applications", "Approved", "Commission Owed (₹)"],
     visible: has(["BDM", "VP", "ADMIN"]),
     compute: async (user, range) => {
       const role = user.role as RoleKey;
@@ -408,15 +409,17 @@ export const REPORTS: ReportDef[] = [
       });
       const rows: ReportRow[] = [];
       for (const p of partners) {
-        const [assessments, applications, approved, owed] = await Promise.all([
+        const [assessments, eligible, applications, approved, owed] = await Promise.all([
           prisma.assessment.count({ where: { AND: [{ partnerId: p.id }, rangeClause<Prisma.AssessmentWhereInput>("createdAt", range)] } }),
+          prisma.assessment.count({ where: { partnerId: p.id, eligibilityOutcome: "ELIGIBLE" } }),
           prisma.application.count({ where: { lead: { partnerId: p.id } } }),
           prisma.application.count({ where: { lead: { partnerId: p.id }, currentStage: "ST_6" } }),
           prisma.commission.aggregate({ where: { partnerId: p.id, status: "OWED" }, _sum: { amount: true } }),
         ]);
-        rows.push([p.companyName, assessments, applications, approved, owed._sum.amount ?? 0]);
+        const score = partnerScore({ assessments, eligible, applications, approved });
+        rows.push([p.companyName, score, assessments, applications, approved, owed._sum.amount ?? 0]);
       }
-      return rows.sort((a, b) => Number(b[2]) - Number(a[2]));
+      return rows.sort((a, b) => Number(b[1]) - Number(a[1]));
     },
   },
   {

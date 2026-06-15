@@ -50,6 +50,15 @@ export const CAN_ENROLL: RoleKey[] = [
   "VP",
 ];
 
+// Roles that can approve discounts on enrollments (Section 3.3).
+export const CAN_APPROVE_DISCOUNT: RoleKey[] = [
+  "B2C_TL_DIRECT",
+  "B2C_TL_CAREER",
+  "BRANCH_MANAGER",
+  "VP",
+  "ADMIN",
+];
+
 // Backend pipeline roles (Section 4.3) — manage country applications.
 export const CAN_BACKEND: RoleKey[] = [
   "BACKEND_COUNSELOR",

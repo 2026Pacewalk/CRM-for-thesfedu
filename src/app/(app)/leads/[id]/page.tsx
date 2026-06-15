@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { can, CAN_ASSIGN_LEAD, CAN_ENROLL, CAN_BACKEND, CAN_UPLOAD_DOCS, CAN_MERGE_LEAD, CAN_ADMIN } from "@/lib/rbac";
+import { can, CAN_ASSIGN_LEAD, CAN_ENROLL, CAN_BACKEND, CAN_UPLOAD_DOCS, CAN_MERGE_LEAD, CAN_ADMIN, CAN_APPROVE_DISCOUNT } from "@/lib/rbac";
 import { eraseLeadAction } from "@/app/(app)/leads/actions";
+import { approveDiscountAction } from "@/app/(app)/enrollments/actions";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusChanger } from "@/components/StatusChanger";
 import { InteractionForm } from "@/components/InteractionForm";
@@ -178,6 +179,20 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                   <Field label="Balance" value={formatINR(Math.max(0, enrollTotals!.net - collected))} />
                   <Field label="Status" value={PAYMENT_STATUSES[enrollment.paymentStatus as keyof typeof PAYMENT_STATUSES] ?? enrollment.paymentStatus} />
                 </dl>
+
+                {enrollment.requestedDiscount != null && !enrollment.discountApproved && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+                    <span className="text-amber-800">
+                      Discount of <b>{formatINR(enrollment.requestedDiscount)}</b> is pending approval (not yet applied).
+                    </span>
+                    {can(user.role, CAN_APPROVE_DISCOUNT) && (
+                      <form action={approveDiscountAction}>
+                        <input type="hidden" name="enrollmentId" value={enrollment.id} />
+                        <button className="btn-primary px-3 py-1.5 text-xs">Approve discount</button>
+                      </form>
+                    )}
+                  </div>
+                )}
 
                 {canEnroll && (
                   <form action={recordPaymentAction} className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 sm:grid-cols-4">

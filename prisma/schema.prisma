@@ -241,7 +241,12 @@ model Enrollment {
   id             String   @id @default(cuid())
   leadId         String   @unique
   enrolledAt     DateTime @default(now())
-  discountAmount Float    @default(0)
+  discountAmount Float    @default(0) // effective (approved) discount applied to totals
+  // Discount approval workflow (Section 3.3): a discount requested by a non-approver
+  // sits in requestedDiscount until approved, at which point it moves to discountAmount.
+  requestedDiscount    Float?
+  discountApproved     Boolean @default(true)
+  discountApprovedById String?
   paymentStatus  String   @default("PENDING") // PENDING | PARTIAL | COMPLETE
   notes          String?
 

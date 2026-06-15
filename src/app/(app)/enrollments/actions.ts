@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { can, CAN_ENROLL } from "@/lib/rbac";
+import { can, CAN_ENROLL, CAN_APPROVE_DISCOUNT } from "@/lib/rbac";
 import { notifyMany } from "@/lib/notify";
 import { autoSendForLead } from "@/lib/integrations";
 import { computeEnrollmentTotals, sumPayments, paymentStatusFor } from "@/lib/money";
@@ -32,12 +32,19 @@ export async function enrollLeadAction(formData: FormData) {
   const packages = await prisma.servicePackage.findMany({ where: { id: { in: packageIds } } });
   if (packages.length === 0) return;
 
+  // Discount approval (Section 3.3): a discount entered by a non-approver is held in
+  // requestedDiscount (not applied to totals) until a manager/TL/admin approves it.
+  const approvesOwn = discount === 0 || can(user.role, CAN_APPROVE_DISCOUNT);
+
   await prisma.$transaction(async (tx) => {
     await tx.enrollment.create({
       data: {
         leadId,
         enrolledById: user.id,
-        discountAmount: discount,
+        discountAmount: approvesOwn ? discount : 0,
+        requestedDiscount: approvesOwn ? null : discount,
+        discountApproved: approvesOwn,
+        discountApprovedById: approvesOwn && discount > 0 ? user.id : null,
         notes: notes || null,
         paymentStatus: "PENDING",
         items: {
@@ -83,6 +90,41 @@ export async function enrollLeadAction(formData: FormData) {
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/enrollments");
   redirect(`/leads/${leadId}`);
+}
+
+// Approve a pending discount (Section 3.3). Moves requestedDiscount into the
+// effective discountAmount and recomputes payment status.
+export async function approveDiscountAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !can(user.role, CAN_APPROVE_DISCOUNT)) return;
+
+  const enrollmentId = String(formData.get("enrollmentId"));
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    include: { items: true, payments: true },
+  });
+  if (!enrollment || enrollment.discountApproved) return;
+
+  const discount = enrollment.requestedDiscount ?? 0;
+  const { net } = computeEnrollmentTotals(enrollment.items, discount);
+  const status = paymentStatusFor(sumPayments(enrollment.payments), net);
+
+  await prisma.enrollment.update({
+    where: { id: enrollmentId },
+    data: {
+      discountAmount: discount,
+      requestedDiscount: null,
+      discountApproved: true,
+      discountApprovedById: user.id,
+      paymentStatus: status,
+    },
+  });
+  await prisma.auditLog.create({
+    data: { userId: user.id, action: "APPROVE_DISCOUNT", entityType: "Enrollment", entityId: enrollmentId },
+  });
+
+  revalidatePath(`/leads/${enrollment.leadId}`);
+  revalidatePath("/enrollments");
 }
 
 // Record a payment against an enrollment and recompute payment status.

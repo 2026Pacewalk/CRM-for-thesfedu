@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { can, CAN_B2B } from "@/lib/rbac";
 import { StatusBadge } from "@/components/StatusBadge";
 import { eligibilityLabel, COMMISSION_STATUSES } from "@/lib/constants";
+import { partnerScore, scoreBand, SCORE_BAND_COLORS } from "@/lib/partner-score";
 import {
   togglePartnerActiveAction,
   createCommissionAction,
@@ -41,6 +42,15 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
   });
 
   if (!partner) notFound();
+
+  // Performance score inputs (Section 5.1) — assessments/eligibility + application conversion.
+  const [applications, approved] = await Promise.all([
+    prisma.application.count({ where: { lead: { partnerId: partner.id } } }),
+    prisma.application.count({ where: { lead: { partnerId: partner.id }, currentStage: "ST_6" } }),
+  ]);
+  const eligible = partner.assessments.filter((a) => a.eligibilityOutcome === "ELIGIBLE").length;
+  const score = partnerScore({ assessments: partner.assessments.length, eligible, applications, approved });
+  const band = scoreBand(score);
 
   const totalOwed = partner.commissions
     .filter((c) => c.status === "OWED")
@@ -101,6 +111,14 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
             <div className="text-slate-700">
               {partner.commissionRate != null ? `${partner.commissionRate}%` : "—"}
             </div>
+          </div>
+          <div>
+            <div className="label">Performance Score</div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-semibold text-slate-900">{score}</span>
+              <span className={`badge ${SCORE_BAND_COLORS[band]}`}>{band}</span>
+            </div>
+            <div className="text-[11px] text-slate-400">{approved}/{applications} visa approvals · {eligible}/{partner.assessments.length} eligible</div>
           </div>
         </div>
       </div>
