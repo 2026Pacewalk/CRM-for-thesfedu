@@ -50,6 +50,10 @@ export default function LoginPage() {
           <p className="font-medium text-slate-600">Demo accounts (password: Password123!)</p>
           <p className="mt-1">admin@thesfedu.com · reception@thesfedu.com · counselor.direct@thesfedu.com · vp@thesfedu.com</p>
         </div>
+
+        <p className="mt-5 text-center text-xs text-slate-400">
+          Developed by <span className="font-semibold text-brand-700">PACEWALK</span>
+        </p>
       </div>
     </div>
   );
