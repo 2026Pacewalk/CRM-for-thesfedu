@@ -1,0 +1,508 @@
+// Immigration & Consultancy CRM — Prisma schema
+//
+// DEV uses SQLite for zero-setup local running. The schema avoids native enums and
+// SQLite-only features so it is PostgreSQL-compatible. Toggle for production with
+// `npm run db:postgres` (and `npm run db:sqlite` to switch back). Enum-like values
+// are stored as String and validated in code (see src/lib/constants.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Organization & people
+// ---------------------------------------------------------------------------
+
+model Branch {
+  id           String   @id @default(cuid())
+  name         String
+  code         String   @unique
+  address      String?
+  phone        String?
+  isHeadOffice Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  users User[]
+  leads Lead[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String // see ROLES in src/lib/constants.ts
+  vertical     String? // B2C_DIRECT | B2C_CAREER | B2B
+  isActive     Boolean  @default(true)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String? // base32 TOTP secret (set during 2FA setup)
+  createdAt    DateTime @default(now())
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
+
+  enteredLeads    Lead[]              @relation("LeadEnteredBy")
+  leadAssignments LeadCounselor[]
+  interactions    Interaction[]
+  tasksAssigned   Task[]              @relation("TaskAssignee")
+  tasksCreated    Task[]              @relation("TaskCreator")
+  statusChanges   LeadStatusHistory[]
+  auditLogs       AuditLog[]
+  managedPartners B2BPartner[]        @relation("PartnerBDM")
+
+  enrollmentsCreated   Enrollment[]               @relation("EnrollmentBy")
+  paymentsRecorded     Payment[]                  @relation("PaymentBy")
+  backendApplications  Application[]              @relation("AppBackendCounselor")
+  admissionsApps       Application[]              @relation("AppAdmissions")
+  fillingApps          Application[]              @relation("AppFilling")
+  appStageChanges      ApplicationStageHistory[]
+  documentsUploaded    Document[]
+  assessmentsEntered   Assessment[]               @relation("AssessmentBy")
+  assessmentsAsBdm     Assessment[]               @relation("AssessmentBDM")
+  notifications        Notification[]
+  messagesSent         MessageLog[]               @relation("MessageSentBy")
+}
+
+model B2BPartner {
+  id             String    @id @default(cuid())
+  companyName    String
+  contactName    String?
+  contactPhone   String?
+  contactEmail   String?
+  partnerType    String? // Sub-agent | Direct Partner | Institutional Partner
+  agreementDate  DateTime?
+  commissionRate Float?    // default % used when raising commissions
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  assignedBdmId String?
+  assignedBdm   User?   @relation("PartnerBDM", fields: [assignedBdmId], references: [id])
+
+  leads       Lead[]
+  assessments Assessment[]
+  commissions Commission[]
+}
+
+// ---------------------------------------------------------------------------
+// Lead Management (Section 2 & 3)
+// ---------------------------------------------------------------------------
+
+model Lead {
+  id              String    @id @default(cuid())
+  fullName        String
+  phone           String
+  phoneNormalized String? // digits only, for duplicate detection across formatting
+  isWhatsapp      Boolean   @default(false)
+  email           String?
+  dateOfBirth     DateTime?
+  source          String
+  sourceSubType   String?
+  vertical        String
+  services        String    @default("[]") // JSON array of service-type keys
+  status          String    @default("NEW")
+  notes           String?
+  followUpDate    DateTime?
+  leadDate        DateTime  @default(now())
+  closeReason     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  enteredById String?
+  enteredBy   User?   @relation("LeadEnteredBy", fields: [enteredById], references: [id])
+
+  partnerId String?
+  partner   B2BPartner? @relation(fields: [partnerId], references: [id])
+
+  counselors    LeadCounselor[]
+  interactions  Interaction[]
+  tasks         Task[]
+  statusHistory LeadStatusHistory[]
+  enrollment    Enrollment?
+  applications  Application[]
+  documents     Document[]
+  assessments   Assessment[]
+  messageLogs   MessageLog[]
+
+  @@index([status])
+  @@index([branchId])
+  @@index([phoneNormalized])
+  @@index([email])
+}
+
+model LeadCounselor {
+  id         String   @id @default(cuid())
+  leadId     String
+  userId     String
+  stream     String // DIRECT | CAREER | GENERAL
+  assignedAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([leadId, userId])
+  @@index([userId])
+}
+
+model Interaction {
+  id           String    @id @default(cuid())
+  leadId       String
+  userId       String
+  type         String
+  summary      String
+  nextAction   String?
+  followUpDate DateTime?
+  createdAt    DateTime  @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([leadId])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  priority    String    @default("MEDIUM")
+  status      String    @default("PENDING")
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  assignedToId String
+  assignedTo   User   @relation("TaskAssignee", fields: [assignedToId], references: [id])
+
+  createdById String?
+  createdBy   User?   @relation("TaskCreator", fields: [createdById], references: [id])
+
+  @@index([assignedToId])
+  @@index([status])
+}
+
+model LeadStatusHistory {
+  id          String   @id @default(cuid())
+  leadId      String
+  fromStatus  String?
+  toStatus    String
+  reason      String?
+  changedById String?
+  changedAt   DateTime @default(now())
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  changedBy User? @relation(fields: [changedById], references: [id])
+
+  @@index([leadId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  details    String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+}
+
+// ---------------------------------------------------------------------------
+// Enrollment, packages & payments (Section 3.2–3.3)
+// ---------------------------------------------------------------------------
+
+model ServicePackage {
+  id                String   @id @default(cuid())
+  name              String
+  serviceCategory   String // ServiceTypeKey
+  basePrice         Float    @default(0)
+  taxRate           Float    @default(0) // percent
+  allowInstallments Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  items EnrollmentItem[]
+}
+
+model Enrollment {
+  id             String   @id @default(cuid())
+  leadId         String   @unique
+  enrolledAt     DateTime @default(now())
+  discountAmount Float    @default(0)
+  paymentStatus  String   @default("PENDING") // PENDING | PARTIAL | COMPLETE
+  notes          String?
+
+  lead         Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  enrolledById String?
+  enrolledBy   User?  @relation("EnrollmentBy", fields: [enrolledById], references: [id])
+
+  items        EnrollmentItem[]
+  payments     Payment[]
+  commissions  Commission[]
+  paymentLinks PaymentLink[]
+}
+
+model EnrollmentItem {
+  id           String @id @default(cuid())
+  enrollmentId String
+  packageId    String
+  price        Float // base price captured at enrollment
+  taxRate      Float  @default(0)
+
+  enrollment Enrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  package    ServicePackage @relation(fields: [packageId], references: [id])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  enrollmentId  String
+  amount        Float
+  mode          String // CASH | CARD | UPI | BANK | CHEQUE | ONLINE
+  receiptNumber String?
+  note          String?
+  paidAt        DateTime @default(now())
+
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  recordedById String?
+  recordedBy   User?      @relation("PaymentBy", fields: [recordedById], references: [id])
+}
+
+// Online payment links (Section 7.10). Created via the payment gateway (Razorpay)
+// or simulated when no gateway is configured; settled by webhook or manual mark.
+model PaymentLink {
+  id          String    @id @default(cuid())
+  enrollmentId String
+  amount      Float
+  provider    String // RAZORPAY | SIMULATED
+  providerRef String? // gateway payment-link id
+  shortUrl    String?
+  status      String    @default("PENDING") // PENDING | PAID | CANCELLED
+  createdAt   DateTime  @default(now())
+  paidAt      DateTime?
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId])
+  @@index([providerRef])
+}
+
+// ---------------------------------------------------------------------------
+// Backend country pipeline (Section 4)
+// ---------------------------------------------------------------------------
+
+model Institution {
+  id        String   @id @default(cuid())
+  name      String
+  country   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  applications Application[]
+}
+
+model Application {
+  id            String    @id @default(cuid())
+  leadId        String
+  country       String
+  currentStage  String    @default("ST_1") // ST_1 .. ST_7
+  outcome       String? // APPROVED | REFUSED
+  program       String?
+  intake        String?
+  lodgmentRef   String?
+  lodgmentDate  DateTime?
+  refusalReason String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+
+  backendCounselorId String?
+  backendCounselor   User?   @relation("AppBackendCounselor", fields: [backendCounselorId], references: [id])
+  admissionsOfficerId String?
+  admissionsOfficer   User?  @relation("AppAdmissions", fields: [admissionsOfficerId], references: [id])
+  fillingMemberId    String?
+  fillingMember      User?   @relation("AppFilling", fields: [fillingMemberId], references: [id])
+
+  stageHistory ApplicationStageHistory[]
+  documents    Document[]
+  commissions  Commission[]
+
+  @@index([leadId])
+  @@index([country])
+  @@index([currentStage])
+}
+
+model ApplicationStageHistory {
+  id            String   @id @default(cuid())
+  applicationId String
+  stageCode     String
+  note          String?
+  byId          String?
+  at            DateTime @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  by          User?       @relation(fields: [byId], references: [id])
+
+  @@index([applicationId])
+}
+
+// ---------------------------------------------------------------------------
+// Document management (Section 4.5 & 7.5)
+// ---------------------------------------------------------------------------
+
+model Document {
+  id            String   @id @default(cuid())
+  type          String // DocumentType key
+  label         String?
+  fileName      String // original name
+  storedName    String // name on disk under /uploads
+  mimeType      String?
+  fileSize      Int      @default(0)
+  version       Int      @default(1)
+  uploadedAt    DateTime @default(now())
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id])
+
+  @@index([leadId])
+  @@index([applicationId])
+}
+
+// ---------------------------------------------------------------------------
+// B2B (Section 5)
+// ---------------------------------------------------------------------------
+
+model Assessment {
+  id                 String   @id @default(cuid())
+  studentName        String
+  country            String?
+  program            String?
+  eligibilityOutcome String // ELIGIBLE | NOT_ELIGIBLE | CONDITIONAL
+  notes              String?
+  status             String   @default("ASSESSED")
+  createdAt          DateTime @default(now())
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  partnerId String?
+  partner   B2BPartner? @relation(fields: [partnerId], references: [id])
+
+  bdmId String?
+  bdm   User?  @relation("AssessmentBDM", fields: [bdmId], references: [id])
+
+  enteredById String?
+  enteredBy   User?   @relation("AssessmentBy", fields: [enteredById], references: [id])
+
+  @@index([partnerId])
+}
+
+model Commission {
+  id        String   @id @default(cuid())
+  partnerId String
+  amount    Float    @default(0)
+  status    String   @default("OWED") // OWED | PAID
+  note      String?
+  createdAt DateTime @default(now())
+
+  partner      B2BPartner  @relation(fields: [partnerId], references: [id])
+  enrollmentId String?
+  enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  applicationId String?
+  application  Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (Section 7.4)
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+// Scheduled report digests (Section 6.7 / 7.8). A cron job hits /api/cron/digests
+// to deliver due digests by email.
+model ReportSchedule {
+  id             String    @id @default(cuid())
+  name           String
+  recipientEmail String
+  frequency      String // DAILY | WEEKLY
+  isActive       Boolean   @default(true)
+  lastRunAt      DateTime?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Communications & integrations (Section 7.1 & 7.10)
+// ---------------------------------------------------------------------------
+
+// Configurable message templates (Section 7.8). `event` links a template to an
+// auto-send trigger (e.g. ENROLLMENT_WELCOME); GENERIC templates are manual-only.
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  channel   String // EMAIL | SMS | WHATSAPP
+  event     String? // GENERIC | ENROLLMENT_WELCOME | VISA_APPROVED | VISA_REFUSED | FOLLOW_UP
+  subject   String? // email only
+  body      String // supports {{placeholders}}
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([channel])
+}
+
+// Every outbound message is logged against the lead profile (Section 7.1).
+model MessageLog {
+  id        String   @id @default(cuid())
+  channel   String
+  toAddress String
+  subject   String?
+  body      String
+  status    String // SENT | SIMULATED | FAILED
+  error     String?
+  event     String?
+  createdAt DateTime @default(now())
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  sentById String?
+  sentBy   User?   @relation("MessageSentBy", fields: [sentById], references: [id])
+
+  @@index([leadId])
+}
