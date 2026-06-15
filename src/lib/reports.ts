@@ -14,6 +14,7 @@ import {
   type RoleKey,
 } from "./constants";
 import { computeEnrollmentTotals, sumPayments } from "./money";
+import { getSlaDays } from "./settings";
 
 export type ReportRange = { from?: Date; to?: Date };
 
@@ -213,13 +214,14 @@ export const REPORTS: ReportDef[] = [
   },
   {
     key: "unattended-leads",
-    title: "Unattended Leads (>2 days, still New)",
+    title: "Unattended Leads (still New, past SLA)",
     section: "Conversion & Performance",
     columns: ["Student", "Status", "Lead Date", "Days Old"],
     visible: has(LEADER_ROLES),
     compute: async (user, range) => {
+      const sla = await getSlaDays();
       const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - 2);
+      cutoff.setDate(cutoff.getDate() - sla);
       const leads = await prisma.lead.findMany({
         where: { AND: [leadScopeWhere(user), rangeClause("leadDate", range), { status: "NEW" }, { leadDate: { lt: cutoff } }] },
         select: { fullName: true, status: true, leadDate: true },

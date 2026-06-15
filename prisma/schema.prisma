@@ -455,6 +455,22 @@ model Notification {
   @@index([userId, isRead])
 }
 
+// Admin-configurable key/value settings (Section 7.8) — e.g. SLA thresholds.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// Admin-managed destination countries for the pipeline (Section 7.8). Augments the
+// built-in country list; the built-ins always remain valid.
+model Country {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
 // Scheduled report digests (Section 6.7 / 7.8). A cron job hits /api/cron/digests
 // to deliver due digests by email.
 model ReportSchedule {

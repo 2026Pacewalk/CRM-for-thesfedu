@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { can, CAN_BACKEND } from "@/lib/rbac";
 import { createApplicationAction } from "../actions";
-import { COUNTRIES } from "@/lib/constants";
+import { getActiveCountryNames } from "@/lib/countries";
 
 export default async function NewApplicationPage({
   searchParams,
@@ -24,6 +24,7 @@ export default async function NewApplicationPage({
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
+  const countries = await getActiveCountryNames();
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -38,7 +39,7 @@ export default async function NewApplicationPage({
           <label className="label">Destination Country *</label>
           <select name="country" className="input" required defaultValue="">
             <option value="">Select country…</option>
-            {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {countries.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>

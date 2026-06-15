@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { StageBadge } from "@/components/StageBadge";
 import { formatINR } from "@/lib/money";
 import { startOfToday, endOfToday, startOfWeek, startOfMonth, daysAgo } from "@/lib/dates";
+import { getSlaDays } from "@/lib/settings";
 
 // Role-appropriate home dashboards (Section 7.9). Each role sees a different set of
 // widgets driven by their access scope (Section 1.2). The page dispatches on role.
@@ -221,12 +222,13 @@ async function BackendDashboard({ user }: { user: SessionUser }) {
 async function TeamLeaderDashboard({ user }: { user: SessionUser }) {
   const scope = leadScopeWhere(user);
   const counselorRole: RoleKey = user.role === "B2C_TL_CAREER" ? "B2C_COUNSELOR_CAREER" : "B2C_COUNSELOR_DIRECT";
+  const slaDays = await getSlaDays();
 
   const [total, byStatus, unattended, teamMembers] = await Promise.all([
     prisma.lead.count({ where: scope }),
     prisma.lead.groupBy({ by: ["status"], where: scope, _count: true }),
-    // Unattended: still NEW and older than the 2-day SLA threshold (Section 6.3).
-    prisma.lead.count({ where: { AND: [scope, { status: "NEW" }, { leadDate: { lt: daysAgo(2) } }] } }),
+    // Unattended: still NEW and older than the configurable SLA threshold (Sections 6.3, 7.8).
+    prisma.lead.count({ where: { AND: [scope, { status: "NEW" }, { leadDate: { lt: daysAgo(slaDays) } }] } }),
     prisma.user.findMany({
       where: { role: counselorRole, isActive: true, ...(user.branchId ? { branchId: user.branchId } : {}) },
       select: { id: true, name: true },
@@ -255,7 +257,7 @@ async function TeamLeaderDashboard({ user }: { user: SessionUser }) {
           { label: "Team Leads", value: total, href: "/leads" },
           { label: "Interested", value: statusMap["INTERESTED"] ?? 0, href: "/leads?status=INTERESTED" },
           { label: "Enrolled", value: statusMap["ENROLLED"] ?? 0, href: "/leads?status=ENROLLED" },
-          { label: "Unattended (>2d)", value: unattended, href: "/leads?status=NEW", alert: unattended > 0 },
+          { label: `Unattended (>${slaDays}d)`, value: unattended, href: "/leads?status=NEW", alert: unattended > 0 },
         ]}
       />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

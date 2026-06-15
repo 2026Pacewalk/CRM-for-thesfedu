@@ -6,13 +6,11 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { can, CAN_ADMIN } from "@/lib/rbac";
-import { COUNTRIES } from "@/lib/constants";
-
-const countryValues = [...COUNTRIES] as [string, ...string[]];
+import { isActiveCountry } from "@/lib/countries";
 
 const createInstitutionSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  country: z.enum(countryValues),
+  country: z.string().min(1, "Country is required"),
 });
 
 export async function createInstitutionAction(formData: FormData) {
@@ -30,6 +28,9 @@ export async function createInstitutionAction(formData: FormData) {
   }
 
   const data = parsed.data;
+  if (!(await isActiveCountry(data.country))) {
+    redirect(`/admin/institutions?error=${encodeURIComponent("Unknown country.")}`);
+  }
 
   const rec = await prisma.institution.create({
     data: {

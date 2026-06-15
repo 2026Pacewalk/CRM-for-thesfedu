@@ -7,7 +7,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { can, CAN_BACKEND } from "@/lib/rbac";
 import { notify, notifyMany } from "@/lib/notify";
 import { autoSendForLead } from "@/lib/integrations";
-import { COUNTRIES, STAGE_TRANSITIONS, stageLabel, COMPANY_NAME, type StageKey } from "@/lib/constants";
+import { STAGE_TRANSITIONS, stageLabel, COMPANY_NAME, type StageKey } from "@/lib/constants";
+import { isActiveCountry } from "@/lib/countries";
 
 // Create a country application track for an enrolled student (Section 4.1).
 export async function createApplicationAction(formData: FormData) {
@@ -20,7 +21,7 @@ export async function createApplicationAction(formData: FormData) {
   const program = String(formData.get("program") ?? "").trim() || null;
   const intake = String(formData.get("intake") ?? "").trim() || null;
 
-  if (!COUNTRIES.includes(country as (typeof COUNTRIES)[number])) return;
+  if (!(await isActiveCountry(country))) return;
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) return;
 
