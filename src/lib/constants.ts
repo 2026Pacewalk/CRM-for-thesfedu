@@ -222,6 +222,58 @@ export type DocumentTypeKey = keyof typeof DOCUMENT_TYPES;
 export const ALLOWED_UPLOAD_EXTENSIONS = ["pdf", "jpg", "jpeg", "png", "docx", "xlsx"];
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20 MB (Section 7.5)
 
+// Required-document checklist per service / visa type (Section 7.5). A lead's
+// checklist is the union of the lists for its selected services. Code-configurable
+// here; an admin-managed UI can layer on later.
+export const DOCUMENT_CHECKLISTS: Partial<Record<ServiceTypeKey, DocumentTypeKey[]>> = {
+  STUDY_VISA: ["PASSPORT", "TRANSCRIPTS", "ENGLISH_SCORE", "FINANCIAL", "SOP", "OFFER_LETTER"],
+  VISITOR_VISA: ["PASSPORT", "FINANCIAL"],
+  SPOUSE_VISA: ["PASSPORT", "FINANCIAL"],
+  PR_IMMIGRATION: ["PASSPORT", "TRANSCRIPTS", "ENGLISH_SCORE", "FINANCIAL"],
+  IELTS_PREP: ["ENGLISH_SCORE"],
+  OFFER_LETTER: ["PASSPORT", "TRANSCRIPTS", "ENGLISH_SCORE"],
+  UNI_SELECTION: ["TRANSCRIPTS", "ENGLISH_SCORE"],
+};
+
+// Document types that have a meaningful expiry to track (Section 7.5).
+export const EXPIRY_TRACKED_TYPES: DocumentTypeKey[] = ["PASSPORT", "ENGLISH_SCORE", "VISA_OUTCOME"];
+
+// Build the de-duplicated required-document checklist for a set of services.
+export function requiredDocsForServices(services: ServiceTypeKey[]): DocumentTypeKey[] {
+  const set = new Set<DocumentTypeKey>();
+  for (const s of services) for (const d of DOCUMENT_CHECKLISTS[s] ?? []) set.add(d);
+  return Array.from(set);
+}
+
+// Expiry alert tiers (Section 7.5): alerts at 90, 60, 30 days and once expired.
+export type ExpiryTier = "EXPIRED" | "30" | "60" | "90" | "OK";
+
+export function expiryTier(expiresAt: Date | string | null | undefined, now: Date = new Date()): ExpiryTier {
+  if (!expiresAt) return "OK";
+  const days = Math.ceil((new Date(expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (days < 0) return "EXPIRED";
+  if (days <= 30) return "30";
+  if (days <= 60) return "60";
+  if (days <= 90) return "90";
+  return "OK";
+}
+
+export const EXPIRY_TIER_LABELS: Record<ExpiryTier, string> = {
+  EXPIRED: "Expired",
+  "30": "Expires ≤30 days",
+  "60": "Expires ≤60 days",
+  "90": "Expires ≤90 days",
+  OK: "Valid",
+};
+
+export const EXPIRY_TIER_COLORS: Record<ExpiryTier, string> = {
+  EXPIRED: "bg-red-100 text-red-800",
+  "30": "bg-rose-100 text-rose-700",
+  "60": "bg-amber-100 text-amber-700",
+  "90": "bg-yellow-100 text-yellow-700",
+  OK: "bg-emerald-100 text-emerald-700",
+};
+
 // --- B2B (Section 5) ---
 export const ELIGIBILITY_OUTCOMES = {
   ELIGIBLE: "Eligible",
@@ -256,6 +308,7 @@ export const MESSAGE_STATUS_COLORS: Record<string, string> = {
   SENT: "bg-emerald-100 text-emerald-700",
   SIMULATED: "bg-sky-100 text-sky-700",
   FAILED: "bg-rose-100 text-rose-700",
+  RECEIVED: "bg-violet-100 text-violet-700", // inbound message (Section 7.1)
 };
 
 export function channelLabel(key: string): string {

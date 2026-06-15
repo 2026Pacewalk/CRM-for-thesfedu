@@ -19,6 +19,7 @@ export async function uploadDocumentAction(_prev: UploadState, formData: FormDat
   const applicationId = String(formData.get("applicationId") ?? "") || null;
   const type = String(formData.get("type") ?? "");
   const label = String(formData.get("label") ?? "").trim();
+  const expiresAtRaw = String(formData.get("expiresAt") ?? "").trim();
   const file = formData.get("file") as File | null;
 
   if (!Object.keys(DOCUMENT_TYPES).includes(type)) return { error: "Choose a document type." };
@@ -47,6 +48,7 @@ export async function uploadDocumentAction(_prev: UploadState, formData: FormDat
       mimeType: file.type || null,
       fileSize: file.size,
       version: priorVersions + 1,
+      expiresAt: expiresAtRaw ? new Date(expiresAtRaw) : null,
       leadId,
       applicationId,
       uploadedById: user.id,

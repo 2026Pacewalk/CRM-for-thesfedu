@@ -30,6 +30,15 @@ export const CAN_ASSIGN_LEAD: RoleKey[] = [
 // Roles with system administration access.
 export const CAN_ADMIN: RoleKey[] = ["ADMIN", "VP"];
 
+// Roles that can merge duplicate lead records (Section 2.5 — "Admin / TL").
+export const CAN_MERGE_LEAD: RoleKey[] = [
+  "ADMIN",
+  "VP",
+  "B2C_TL_DIRECT",
+  "B2C_TL_CAREER",
+  "BRANCH_MANAGER",
+];
+
 // Roles that can enroll students / record payments (Section 3.2).
 export const CAN_ENROLL: RoleKey[] = [
   "B2C_COUNSELOR_DIRECT",
@@ -39,6 +48,15 @@ export const CAN_ENROLL: RoleKey[] = [
   "BRANCH_MANAGER",
   "ADMIN",
   "VP",
+];
+
+// Roles that can approve discounts on enrollments (Section 3.3).
+export const CAN_APPROVE_DISCOUNT: RoleKey[] = [
+  "B2C_TL_DIRECT",
+  "B2C_TL_CAREER",
+  "BRANCH_MANAGER",
+  "VP",
+  "ADMIN",
 ];
 
 // Backend pipeline roles (Section 4.3) — manage country applications.

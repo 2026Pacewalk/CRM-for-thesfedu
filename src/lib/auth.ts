@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
+import { SESSION_IDLE_SECONDS, SESSION_COOKIE } from "./session-config";
 
-const COOKIE_NAME = "sfedu_session";
+const COOKIE_NAME = SESSION_COOKIE;
 const PENDING_COOKIE = "sfedu_2fa";
 const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET ?? "dev-only-secret-change-me"
@@ -32,7 +33,7 @@ async function createToken(user: SessionUser): Promise<string> {
   return new SignJWT({ ...user })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("8h")
+    .setExpirationTime(`${SESSION_IDLE_SECONDS}s`)
     .sign(secret);
 }
 
@@ -89,7 +90,7 @@ export async function establishSession(user: {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: SESSION_IDLE_SECONDS,
   });
   await prisma.auditLog.create({
     data: { userId: user.id, action: "LOGIN", entityType: "User", entityId: user.id },

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { can, CAN_ADMIN } from "@/lib/rbac";
-import { COUNTRIES } from "@/lib/constants";
+import { getActiveCountryNames } from "@/lib/countries";
 import { createInstitutionAction, toggleInstitutionActiveAction } from "./actions";
 
 export default async function AdminInstitutionsPage({
@@ -17,6 +17,7 @@ export default async function AdminInstitutionsPage({
   const institutions = await prisma.institution.findMany({
     orderBy: { createdAt: "desc" },
   });
+  const countries = await getActiveCountryNames();
 
   return (
     <div>
@@ -51,7 +52,7 @@ export default async function AdminInstitutionsPage({
             <label className="label">Country</label>
             <select name="country" required className="input" defaultValue="">
               <option value="" disabled>Select country</option>
-              {COUNTRIES.map((c) => (
+              {countries.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>

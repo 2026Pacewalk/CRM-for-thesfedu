@@ -38,8 +38,8 @@ export function integrationStatus() {
     {
       channel: "WHATSAPP",
       configured: isWhatsappConfigured(),
-      envVars: ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_ID"],
-      note: "WhatsApp Business Cloud API (Meta Graph API).",
+      envVars: ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_ID", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_APP_SECRET"],
+      note: "WhatsApp Business Cloud API (Meta). Two-way: webhook at /api/integrations/whatsapp/webhook.",
     },
     {
       channel: "SMS",
@@ -52,6 +52,12 @@ export function integrationStatus() {
       configured: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
       envVars: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"],
       note: "Razorpay payment links for online fee collection (INR).",
+    },
+    {
+      channel: "LEADFORMS",
+      configured: !!(process.env.LEADFORM_VERIFY_TOKEN && process.env.LEADFORM_PAGE_TOKEN),
+      envVars: ["LEADFORM_VERIFY_TOKEN", "LEADFORM_PAGE_TOKEN", "LEADFORM_APP_SECRET", "LEADFORM_BRANCH_CODE", "LEADFORM_VERTICAL"],
+      note: "Facebook/Instagram Lead Ads → auto-capture leads. Webhook at /api/integrations/leadforms/webhook.",
     },
   ];
 }
