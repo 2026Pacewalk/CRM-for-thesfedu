@@ -52,7 +52,10 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-5 text-center text-xs text-slate-400">
-          Developed by <span className="font-semibold text-brand-700">PACEWALK</span>
+          Developed by{" "}
+          <a href="https://pacewalk.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-700 hover:underline">
+            PACEWALK
+          </a>
         </p>
       </div>
     </div>
