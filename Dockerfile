@@ -21,4 +21,5 @@ EXPOSE 3000
 
 # On start: sync the schema to the database, then run the server.
 # (Demo data is seeded once, manually — see DEPLOYMENT.md.)
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npx next start -p 3000"]
+# Bind to 0.0.0.0 so the platform proxy (e.g. Railway) can reach the server.
+CMD ["sh", "-c", "npx prisma db push --skip-generate && npx next start -H 0.0.0.0 -p ${PORT:-3000}"]
